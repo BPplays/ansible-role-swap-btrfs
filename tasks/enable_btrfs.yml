@@ -18,15 +18,14 @@
 
 
 
-
 - name: Run lsattr command
-  ansible.builtin.shell: "lsattr -d {{ swap_file_path }} | grep 'C' && echo 'nocow' || echo ''"
+  ansible.builtin.shell: "lsattr -d {{ swap_file_path }} | grep 'C' > /dev/null && echo 'nocow' || echo ''"
   register: lsattr_output
+
 
 - name: Check if CoW attribute is set
   ansible.builtin.set_fact:
-    cow_attribute_set: "{{ lsattr_output.stdout == 'nocow' }}"
-
+    swap_nocow: "{{ lsattr_output.stdout == 'nocow' }}"
 
 
 - block:
@@ -36,13 +35,16 @@
   - name: "chattr +C {{ swap_file_path }}"
     command: "chattr +C {{ swap_file_path }}"
 
-  when: cow_attribute_set == false
+  when: swap_nocow == false
+
+
 
 
 
 - name: Ensure swap file exists.
   command: "{{ swap_file_create_command }}"
   register: swap_file_create
+  when: swap_file_exists == false
 
 - name: Set permissions on swap file.
   file:
