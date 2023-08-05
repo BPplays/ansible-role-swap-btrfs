@@ -7,8 +7,36 @@
     opts: sw
     state: "{{ swap_file_state }}"
 
+
+- name: Check filesystem type of swap_file_path directory
+  shell: "df --output=fstype {{ swap_file_path | dirname }} | tail -1"
+  register: filesystem_type
+
+- name: Check if directory is using Btrfs
+  set_fact:
+    is_btrfs: "{{ filesystem_type.stdout == 'btrfs' }}"
+
+
+- name: Check if directory is using kernel 5
+  set_fact:
+    is_kernel5: "{{ ansible_kernel is  version('5','>=') }}"
+
+
+
+
 - include_tasks: disable.yml
   when: swap_file_state == 'absent'
 
 - include_tasks: enable.yml
-  when: swap_file_state == 'present'
+  when: (swap_file_state == 'present') and (is_btrfs == false)
+
+
+- include_tasks: enable_btrfs.yml
+  when: (swap_file_state == 'present') and (is_btrfs == true) and (is_kernel5 == true)
+
+
+
+- name: fail if kernel version less then 5
+  fail:
+    msg: 'you cannot use a swapfile on btrfs prior to kernel version 5'
+  when: (swap_file_state == 'present') and (is_btrfs == true) and (is_kernel5 == false)
