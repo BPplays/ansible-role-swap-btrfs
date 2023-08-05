@@ -10,11 +10,14 @@
     swap_file_exists: "{{ swap_file_stats.stat.exists }}"
 
 
-- name: touch swap_file_create
+- name: touch swap_file_path
   file: 
     path: "{{ swap_file_path }}"
     state: touch
   when: swap_file_exists == false
+
+
+
 
 - name: Run lsattr command
   ansible.builtin.shell: "lsattr -d {{ swap_file_path }} | grep 'C' && echo 'nocow' || echo ''"
@@ -24,6 +27,8 @@
   ansible.builtin.set_fact:
     cow_attribute_set: "{{ lsattr_output.stdout == 'nocow' }}"
 
+
+
 - block:
   - name: "truncate -s 0 {{ swap_file_path }}"
     command: "truncate -s 0 {{ swap_file_path }}"
@@ -32,6 +37,7 @@
     command: "chattr +C {{ swap_file_path }}"
 
   when: cow_attribute_set == false
+
 
 
 - name: Ensure swap file exists.
